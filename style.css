@@ -636,7 +636,8 @@ textarea::-webkit-scrollbar-thumb:hover {
     transition: var(--transition);
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 8px;
     margin-bottom: 10px;
 }
 
@@ -659,8 +660,6 @@ textarea::-webkit-scrollbar-thumb:hover {
     border-radius: var(--radius-sm);
     padding: 14px;
     animation: fadeIn 0.2s ease;
-    max-height: 380px;
-    overflow-y: auto;
 }
 
 @keyframes fadeIn {

@@ -736,10 +736,6 @@ function displayResults(data) {
                                 <span class="info-label">Hồ sơ:</span>
                                 <span class="info-value">${account.profiles}</span>
                             </div>
-                            <div class="info-item">
-                                <span class="info-label">Thanh toán tiếp:</span>
-                                <span class="info-value">${account.next_billing}</span>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -913,21 +909,8 @@ function displayError(message) {
     copyResultsBtn.disabled = false;
 }
 
-// Show notification
-function showNotification(message, isError = false) {
-    notification.textContent = message;
-    notification.className = 'notification';
-
-    if (isError) {
-        notification.classList.add('error');
-    }
-
-    notification.classList.add('show');
-
-    setTimeout(() => {
-        notification.classList.remove('show');
-    }, 3000);
-}
+// Show notification — đã tắt
+function showNotification(message, isError = false) { /* disabled */ }
 
 // Toggle dropdown for results
 function toggleResults(button) {
