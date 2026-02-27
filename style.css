@@ -72,19 +72,19 @@ header {
 }
 
 .logo-icon {
-    width: 48px;
-    height: 48px;
+    width: 64px;
+    height: 64px;
     background: linear-gradient(135deg, var(--red), var(--red-dark));
-    border-radius: 12px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
-    box-shadow: 0 0 24px var(--red-glow);
+    font-size: 30px;
+    box-shadow: 0 0 30px var(--red-glow);
 }
 
 .logo-text {
-    font-size: 2rem;
+    font-size: 2.8rem;
     font-weight: 800;
     letter-spacing: -0.5px;
     background: linear-gradient(135deg, #fff 40%, var(--red));
