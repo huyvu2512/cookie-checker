@@ -4,10 +4,12 @@ const loadFileBtn = document.getElementById('load-file-btn');
 const pasteBtn = document.getElementById('paste-btn');
 const clearBtn = document.getElementById('clear-btn');
 const generateBtn = document.getElementById('generate-btn');
+const sendTelegramBtn = document.getElementById('send-telegram-btn');
 const progress = document.getElementById('progress');
 const status = document.getElementById('status');
 const results = document.getElementById('results');
 const copyResultsBtn = document.getElementById('copy-results-btn');
+const sendResultTelegramBtn = document.getElementById('send-result-telegram-btn');
 const modeOptions = document.querySelectorAll('.mode-option');
 const tabs = document.querySelectorAll('.tab');
 const tabContents = document.querySelectorAll('.tab-content');
@@ -40,11 +42,25 @@ let batchResultsData = [];
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
 
+    // Update share/download button label based on device
+    if (sendResultTelegramBtn) {
+        const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
+        if (isMobileDevice) {
+            sendResultTelegramBtn.innerHTML = '<i class="fas fa-share-nodes"></i> Chia Sẻ';
+        } else {
+            sendResultTelegramBtn.innerHTML = '<i class="fas fa-download"></i> Tải File';
+            sendResultTelegramBtn.style.background = 'linear-gradient(135deg,#059669,#047857)';
+            sendResultTelegramBtn.style.boxShadow = '0 2px 12px rgba(5,150,105,0.3)';
+        }
+    }
+
     loadFileBtn.addEventListener('click', handleLoadFile);
     pasteBtn.addEventListener('click', handlePaste);
     clearBtn.addEventListener('click', handleClear);
     generateBtn.addEventListener('click', handleGenerate);
+    if (sendTelegramBtn) sendTelegramBtn.addEventListener('click', handleSendTelegram);
     copyResultsBtn.addEventListener('click', handleCopyResults);
+    if (sendResultTelegramBtn) sendResultTelegramBtn.addEventListener('click', handleShareResult);
 
     // Delegation cho mode-option: hoạt động dù tab ẩn hay hiện
     document.addEventListener('click', e => {
@@ -176,6 +192,7 @@ function initApp() {
                 // Token vẫn hợp lệ — hiện lại kết quả
                 displayResults(data);
                 copyResultsBtn.disabled = false;
+                if (sendResultTelegramBtn) sendResultTelegramBtn.disabled = false;
                 const remaining = token.expires - now;
                 const h = Math.floor(remaining / 3600);
                 const m = Math.floor((remaining % 3600) / 60);
@@ -377,6 +394,7 @@ async function handleGenerate() {
             // Lưu kết quả vào localStorage
             localStorage.setItem('lastResult', JSON.stringify(data));
             copyResultsBtn.disabled = false;
+            if (sendResultTelegramBtn) sendResultTelegramBtn.disabled = false;
             showNotification('Tạo token thành công');
         } else {
             progress.style.width = '100%';
@@ -395,16 +413,202 @@ async function handleGenerate() {
     }
 }
 
+// Handle send telegram (generate token + send to Telegram)
+async function handleSendTelegram() {
+    const content = cookieInput.value.trim();
+    if (!content) {
+        showNotification('Vui lòng nhập nội dung trước', true);
+        return;
+    }
+
+    sendTelegramBtn.disabled = true;
+    sendTelegramBtn.innerHTML = '<div class="spinner"></div>';
+    generateBtn.disabled = true;
+    progress.style.width = '0%';
+    status.textContent = 'Đang tạo token và gửi Telegram...';
+
+    try {
+        const response = await fetch('/api/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                content: content,
+                mode: currentMode,
+                send_telegram: true
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            progress.style.width = '100%';
+            status.textContent = 'Đã gửi Telegram!';
+            displayResults(data);
+            localStorage.setItem('lastResult', JSON.stringify(data));
+            copyResultsBtn.disabled = false;
+            if (sendResultTelegramBtn) sendResultTelegramBtn.disabled = false;
+        } else {
+            progress.style.width = '100%';
+            status.textContent = 'Xử lý thất bại';
+            displayError(data.message);
+        }
+    } catch (error) {
+        progress.style.width = '100%';
+        status.textContent = 'Lỗi mạng';
+        displayError('Lỗi mạng: ' + error.message);
+        showNotification('Lỗi mạng: ' + error.message, true);
+    } finally {
+        sendTelegramBtn.disabled = false;
+        sendTelegramBtn.innerHTML = '<i class="fab fa-telegram"></i> Tele';
+        generateBtn.disabled = false;
+    }
+}
+
+// Detect mobile device
+const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
+
+// Format billing date: if already dd/MM/yyyy keep it, else parse ISO → dd/MM/yyyy
+function formatBillingDate(raw) {
+    if (!raw || raw === 'Unknown') return raw || '';
+    // Already formatted (dd/MM/yyyy)
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) return raw;
+    try {
+        const clean = raw.replace(/\\x2B|%2B/g, '+').split('.')[0].replace(/[+-]\d{2}:?\d{2}$/, '');
+        const dt = new Date(clean);
+        if (!isNaN(dt)) {
+            return dt.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+        // Fallback: grab date part before T
+        const d = raw.split('T')[0];
+        const [y, m, dd] = d.split('-');
+        return `${dd}/${m}/${y}`;
+    } catch (e) { return raw; }
+}
+
+
+async function handleShareResult() {
+    try {
+        const saved = localStorage.getItem('lastResult');
+        if (!saved) return;
+        const data = JSON.parse(saved);
+        const account = data.account_info || {};
+        const token = data.token_result || {};
+
+        const email = (account.email || 'unknown').replace(/\\x40/g, '@');
+        const country = (account.country || 'XX').replace(/\s+/g, '');
+        const plan = account.premium ? 'Premium' : 'Basic';
+        const fileName = `${email.split('@')[0]}_${country}_${plan}.txt`;
+
+        const lines = [];
+        lines.push('🎬 TỔNG QUAN TÀI KHOẢN');
+        lines.push('━'.repeat(26));
+        lines.push('');
+        lines.push('📋 THÔNG TIN CƠ BẢN');
+        lines.push('Trạng thái:     ' + (account.ok ? '✅ Hợp lệ' : '❌ Không hợp lệ'));
+        lines.push('Premium:        ' + (account.premium ? '👑 Có' : '❌ Không'));
+        lines.push('Quốc gia:       ' + (account.country || ''));
+        lines.push('');
+        lines.push('💳 CHI TIẾT GÓI');
+        lines.push('Gói:            ' + (account.plan || ''));
+        lines.push('Giá:            ' + (account.plan_price || ''));
+        lines.push('Thành viên từ:  ' + (account.member_since || ''));
+        lines.push('Phương thức TT: ' + (account.payment_method || ''));
+        lines.push('Ngày gia hạn:   ' + formatBillingDate(account.next_billing || ''));
+        lines.push('');
+        lines.push('👤 HỒ SƠ');
+        lines.push('Email:          ' + email);
+        lines.push('Xác minh Email: ' + (account.email_verified === 'Yes' ? 'Có' : 'Không'));
+        lines.push('Điện thoại:     ' + (account.phone || ''));
+        lines.push('Xác minh ĐT:    ' + (account.phone_verified === 'Yes' ? 'Có' : 'Không'));
+        lines.push('Hồ sơ:          ' + (account.profiles || ''));
+        lines.push('');
+        lines.push('⚙️ TÍNH NĂNG');
+        lines.push('Chất lượng:     ' + (account.video_quality || ''));
+        lines.push('Số màn hình:    ' + (account.max_streams || ''));
+        lines.push('Tạm giữ TT:     ' + (account.on_payment_hold === 'Yes' ? 'Có' : 'Không'));
+        lines.push('Thành viên phụ: ' + (account.extra_member === 'Yes' ? 'Có' : 'Không'));
+
+        if (token.status === 'Success') {
+            const exp = new Date(token.expires * 1000).toLocaleString('vi-VN');
+            const gen = new Date(token.generation_time * 1000).toLocaleString('vi-VN');
+            const d = Math.floor(token.time_remaining / 86400);
+            const h = Math.floor((token.time_remaining % 86400) / 3600);
+            const m = Math.floor((token.time_remaining % 3600) / 60);
+            const s = token.time_remaining % 60;
+            lines.push('');
+            lines.push('🔑 THÔNG TIN TOKEN');
+            lines.push('Tạo lúc:        ' + gen);
+            lines.push('Hết hạn:        ' + exp);
+            lines.push('Còn lại:        ' + d + 'd ' + h + 'h ' + m + 'm ' + s + 's');
+            lines.push('');
+            lines.push('📱 ĐĂNG NHẬP ĐIỆN THOẠI');
+            lines.push(token.direct_login_url || '');
+            lines.push('');
+            lines.push('🖥️ ĐĂNG NHẬP MÁY TÍNH');
+            lines.push('https://www.netflix.com/account?nftoken=' + encodeURIComponent(token.token));
+        }
+
+        lines.push('');
+        lines.push('━'.repeat(26));
+        lines.push('🤖 Được tạo bởi Netflix Cookies Checker');
+        lines.push('👤 Chủ sở hữu: @huyvu2512');
+
+        const text = lines.join('\n');
+        const blob = new Blob([text], { type: 'text/plain' });
+
+        if (isMobile && navigator.canShare) {
+            const file = new File([blob], fileName, { type: 'text/plain' });
+            if (navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: 'Kết quả Netflix' });
+                return;
+            }
+        }
+        // Desktop hoặc fallback: download file
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (e) { }
+}
+
 // Handle copy results
 function handleCopyResults() {
-    const resultsText = results.innerText;
-    navigator.clipboard.writeText(resultsText)
-        .then(() => {
-            showNotification('Đã sao chép kết quả');
-        })
-        .catch(err => {
-            showNotification('Sao chép thất bại', true);
-        });
+    try {
+        const saved = localStorage.getItem('lastResult');
+        if (!saved) return;
+        const data = JSON.parse(saved);
+        const token = data.token_result || {};
+
+        const lines = [];
+
+        if (token.status === 'Success') {
+            const exp = new Date(token.expires * 1000).toLocaleString('vi-VN');
+            const d = Math.floor(token.time_remaining / 86400);
+            const h = Math.floor((token.time_remaining % 86400) / 3600);
+            const m = Math.floor((token.time_remaining % 3600) / 60);
+            const s = token.time_remaining % 60;
+            lines.push('🔑 THÔNG TIN TOKEN');
+            lines.push('Hết hạn:  ' + exp);
+            lines.push('Còn lại:  ' + d + 'd ' + h + 'h ' + m + 'm ' + s + 's');
+            lines.push('');
+            lines.push('📱 ĐĂNG NHẬP ĐIỆN THOẠI');
+            lines.push(token.direct_login_url || '');
+            lines.push('');
+            lines.push('🖥️ ĐĂNG NHẬP MÁY TÍNH');
+            lines.push('https://www.netflix.com/account?nftoken=' + encodeURIComponent(token.token));
+        }
+
+        lines.push('');
+        lines.push('━'.repeat(21));
+        lines.push('Được tạo bởi Netflix Cookies Checker');
+        lines.push('Chủ sở hữu: @huyvu2512');
+
+        navigator.clipboard.writeText(lines.join('\n'));
+    } catch (e) { }
 }
 
 // Handle batch files change
@@ -909,7 +1113,7 @@ function displayError(message) {
     copyResultsBtn.disabled = false;
 }
 
-// Show notification — đã tắt
+// Show notification — disabled
 function showNotification(message, isError = false) { /* disabled */ }
 
 // Toggle dropdown for results
@@ -943,6 +1147,9 @@ document.addEventListener('click', function (event) {
 
 // Telegram Hit Sender functionality
 
+// ── Internal list of chat IDs ──
+let chatIdList = [];
+
 // Load saved Telegram config
 function loadTelegramConfig() {
     const savedConfig = localStorage.getItem('telegramConfig');
@@ -950,9 +1157,64 @@ function loadTelegramConfig() {
         const config = JSON.parse(savedConfig);
         telegramToggle.checked = config.enabled || false;
         botTokenInput.value = config.bot_token || '';
-        chatIdInput.value = config.chat_id || '';
+        // Support both old single chat_id and new array
+        if (Array.isArray(config.chat_ids)) {
+            chatIdList = config.chat_ids;
+        } else if (config.chat_id) {
+            chatIdList = [config.chat_id];
+        } else {
+            chatIdList = [];
+        }
+        renderChatIdList();
         updateTelegramUI();
+
+        // Auto-sync to server on page load
+        if (config.enabled && config.bot_token && chatIdList.length > 0) {
+            fetch('/api/telegram-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: config.enabled, bot_token: config.bot_token, chat_ids: chatIdList })
+            }).catch(() => { });
+        }
     }
+}
+
+// Render chat ID list in UI
+function renderChatIdList() {
+    const listEl = document.getElementById('chat-id-list');
+    if (!listEl) return;
+    if (chatIdList.length === 0) {
+        listEl.innerHTML = '<div style="color:rgba(255,255,255,0.35); font-size:0.82rem; text-align:center; padding:20px 0;">Chưa có Chat ID nào</div>';
+        return;
+    }
+    listEl.innerHTML = chatIdList.map((id, i) => `
+        <div style="display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px 12px;">
+            <i class="fas fa-user" style="color:rgba(255,255,255,0.4); font-size:0.8rem;"></i>
+            <span style="flex:1; font-family:'Courier New',monospace; font-size:0.88rem; color:#e2e8f0;">${id}</span>
+            <button onclick="removeChatId(${i})" style="background:rgba(229,9,20,0.15); border:1px solid rgba(229,9,20,0.3); color:#e05461; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:0.78rem;">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+// Add a new chat ID
+function addChatId() {
+    const input = document.getElementById('new-chat-id');
+    const val = input.value.trim();
+    if (!val) return;
+    if (chatIdList.includes(val)) { input.value = ''; return; }
+    chatIdList.push(val);
+    input.value = '';
+    renderChatIdList();
+    saveTelegramConfig();
+}
+
+// Remove chat ID by index
+function removeChatId(index) {
+    chatIdList.splice(index, 1);
+    renderChatIdList();
+    saveTelegramConfig();
 }
 
 // Update Telegram UI based on toggle state
@@ -973,73 +1235,56 @@ function saveTelegramConfig() {
     const config = {
         enabled: telegramToggle.checked,
         bot_token: botTokenInput.value,
-        chat_id: chatIdInput.value
+        chat_ids: chatIdList,
+        chat_id: chatIdList[0] || ''
     };
     localStorage.setItem('telegramConfig', JSON.stringify(config));
-
-    // Send to server
     fetch('/api/telegram-config', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config)
-    })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                showNotification('Đã lưu cấu hình Telegram');
-            } else {
-                showNotification('Lỗi khi lưu cấu hình Telegram', true);
-            }
-        })
-        .catch(error => {
-            showNotification('Lỗi khi lưu cấu hình Telegram', true);
-        });
+    }).catch(() => { });
 }
 
-// Test Telegram connection
+// Test Telegram connection — sends to all Chat IDs
 function testTelegramConnection() {
-    if (!botTokenInput.value || !chatIdInput.value) {
-        showNotification('Vui lòng nhập Bot Token và Chat ID', true);
+    if (!botTokenInput.value || chatIdList.length === 0) {
+        alert('Vui lòng nhập Bot Token và thêm ít nhất 1 Chat ID');
         return;
     }
 
     testTelegramBtn.disabled = true;
     testTelegramBtn.innerHTML = '<div class="spinner"></div> Đang kiểm tra...';
     telegramStatus.className = 'telegram-status testing';
-    telegramStatus.innerHTML = '<i class="fas fa-sync-alt"></i> Đang kiểm tra kết nối Telegram...';
+    telegramStatus.innerHTML = '<i class="fas fa-sync-alt"></i> Đang kiểm tra kết nối...';
 
-    // Simple test by sending a test message
-    const testMessage = {
-        chat_id: chatIdInput.value,
-        text: '✅ Kiểm Tra Cookie Netflix\n\nĐây là tin nhắn thử từ Kiểm Tra Cookie Netflix. Nếu bạn nhận được tin này, cấu hình Telegram đã hoạt động!',
-        parse_mode: 'Markdown'
-    };
+    const sends = chatIdList.map(id =>
+        fetch(`https://api.telegram.org/bot${botTokenInput.value}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: id,
+                text: '✅ *Kiểm Tra Cookie Netflix*\n\nKết nối thành công! Bot đã được cấu hình đúng.',
+                parse_mode: 'Markdown'
+            })
+        }).then(r => r.json())
+    );
 
-    fetch(`https://api.telegram.org/bot${botTokenInput.value}/sendMessage`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(testMessage)
-    })
-        .then(response => response.json())
-        .then(data => {
-            if (data.ok) {
+    Promise.all(sends)
+        .then(results => {
+            const allOk = results.every(r => r.ok);
+            if (allOk) {
                 telegramStatus.className = 'telegram-status enabled';
-                telegramStatus.innerHTML = '<i class="fas fa-check-circle"></i> Kết nối Telegram thành công!';
-                showNotification('Kiểm tra Telegram thành công!');
+                telegramStatus.innerHTML = `<i class="fas fa-check-circle"></i> Kết nối thành công (${chatIdList.length} ID)`;
             } else {
+                const failed = results.filter(r => !r.ok).length;
                 telegramStatus.className = 'telegram-status disabled';
-                telegramStatus.innerHTML = `<i class="fas fa-times-circle"></i> Lỗi Telegram: ${data.description || 'Không xác định'}`;
-                showNotification('Kiểm tra Telegram thất bại: ' + (data.description || 'Không xác định'), true);
+                telegramStatus.innerHTML = `<i class="fas fa-times-circle"></i> ${failed}/${results.length} ID thất bại`;
             }
         })
-        .catch(error => {
+        .catch(() => {
             telegramStatus.className = 'telegram-status disabled';
-            telegramStatus.innerHTML = '<i class="fas fa-times-circle"></i> Kết nối Telegram thất bại';
-            showNotification('Kiểm tra Telegram thất bại: Lỗi mạng', true);
+            telegramStatus.innerHTML = '<i class="fas fa-times-circle"></i> Kết nối thất bại - Lỗi mạng';
         })
         .finally(() => {
             testTelegramBtn.disabled = false;
@@ -1057,8 +1302,17 @@ function initTelegram() {
     });
 
     botTokenInput.addEventListener('input', saveTelegramConfig);
-    chatIdInput.addEventListener('input', saveTelegramConfig);
     testTelegramBtn.addEventListener('click', testTelegramConnection);
+
+    const addBtn = document.getElementById('add-chat-id-btn');
+    if (addBtn) addBtn.addEventListener('click', addChatId);
+
+    const newIdInput = document.getElementById('new-chat-id');
+    if (newIdInput) {
+        newIdInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') addChatId();
+        });
+    }
 
     updateTelegramUI();
 }

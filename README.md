@@ -34,7 +34,7 @@ pip install -r requirements.txt
 python api.py
 ```
 
-Mở trình duyệt tại: **http://localhost:5000**
+Mở trình duyệt tại: **http://localhost:3000**
 
 ---
 

@@ -59,9 +59,16 @@
                         <div class="mode-option" data-mode="tokenonly">Lấy Token</div>
                     </div>
 
-                    <button class="btn btn-primary" id="generate-btn" style="width:100%;">
-                        <i class="fas fa-key"></i> Tạo Token
-                    </button>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-primary" id="generate-btn" style="flex:2;">
+                            <i class="fas fa-key"></i> Tạo Token
+                        </button>
+                        <button class="btn" id="send-telegram-btn"
+                            style="flex:1; background:linear-gradient(135deg,#229ED9,#1a7fc4); border:none; color:#fff; box-shadow:0 2px 12px rgba(34,158,217,0.3);"
+                            title="Tạo token và gửi qua Telegram">
+                            <i class="fab fa-telegram"></i> Telegram
+                        </button>
+                    </div>
 
                     <div class="progress-container">
                         <div class="progress-bar">
@@ -117,9 +124,16 @@
                         </div>
                     </div>
 
-                    <button class="btn" id="copy-results-btn" style="width:100%; margin-top:14px;" disabled>
-                        <i class="fas fa-copy"></i> Sao Chép Kết Quả
-                    </button>
+                    <div style="display:flex; gap:8px; margin-top:14px;">
+                        <button class="btn" id="copy-results-btn" style="flex:2;" disabled>
+                            <i class="fas fa-copy"></i> Sao Chép Kết Quả
+                        </button>
+                        <button class="btn" id="send-result-telegram-btn"
+                            style="flex:1; background:linear-gradient(135deg,#7c3aed,#5b21b6); border:none; color:#fff; box-shadow:0 2px 12px rgba(124,58,237,0.3);"
+                            title="Chia sẻ kết quả dưới dạng file .txt" disabled>
+                            <i class="fas fa-share-nodes"></i> Chia Sẻ
+                        </button>
+                    </div>
                 </div>
 
             </div>
@@ -197,34 +211,60 @@
 
         <!-- ── TELEGRAM TAB ── -->
         <div class="tab-content" id="telegram-tab">
-            <div class="card" style="max-width:560px; margin:0 auto;">
-                <div class="card-title"><i class="fab fa-telegram"></i> Cấu Hình Telegram</div>
+            <div class="main-content" style="grid-template-columns:1fr 1fr; gap:16px;">
 
-                <div class="input-group">
-                    <label class="toggle-label">
-                        <input type="checkbox" id="telegram-toggle">
-                        <span class="toggle-slider"></span>
-                        Bật gửi kết quả hợp lệ qua Telegram
-                    </label>
-                </div>
+                <!-- Card trái: Cấu hình bot -->
+                <div class="card">
+                    <div class="card-title"><i class="fab fa-telegram"></i> Cấu Hình Bot</div>
 
-                <div id="telegram-config" class="telegram-config" style="display:none;">
                     <div class="input-group">
-                        <label for="bot-token">Bot Token</label>
-                        <input type="text" id="bot-token" placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="telegram-toggle">
+                            <span class="toggle-slider"></span>
+                            Bật gửi kết quả qua Telegram
+                        </label>
                     </div>
-                    <div class="input-group">
-                        <label for="chat-id">Chat ID</label>
-                        <input type="text" id="chat-id" placeholder="123456789">
+
+                    <div id="telegram-config" class="telegram-config" style="display:none;">
+                        <div class="input-group">
+                            <label for="bot-token">Bot Token</label>
+                            <input type="text" id="bot-token" placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz">
+                        </div>
+                        <!-- hidden legacy field, kept for JS compat -->
+                        <input type="hidden" id="chat-id">
+                        <button class="btn btn-primary" id="test-telegram-btn" style="width:100%;">
+                            <i class="fas fa-paper-plane"></i> Kiểm Tra Kết Nối
+                        </button>
                     </div>
-                    <button class="btn btn-primary" id="test-telegram-btn" style="width:100%;">
-                        <i class="fas fa-paper-plane"></i> Kiểm Tra Kết Nối
-                    </button>
+
+                    <div class="telegram-status" id="telegram-status">
+                        <i class="fas fa-circle-xmark"></i> Gửi Telegram đang tắt
+                    </div>
                 </div>
 
-                <div class="telegram-status" id="telegram-status">
-                    <i class="fas fa-circle-xmark"></i> Gửi Telegram đang tắt
+                <!-- Card phải: Danh sách Chat ID -->
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-users"></i> Danh Sách Chat ID</div>
+
+                    <div class="input-group" style="display:flex; gap:8px; align-items:flex-end;">
+                        <div style="flex:1;">
+                            <label for="new-chat-id">Thêm Chat ID</label>
+                            <input type="text" id="new-chat-id" placeholder="123456789" style="margin-bottom:0;">
+                        </div>
+                        <button class="btn btn-primary" id="add-chat-id-btn" style="min-width:80px; padding:10px 14px;">
+                            <i class="fas fa-plus"></i> Thêm
+                        </button>
+                    </div>
+
+                    <div id="chat-id-list"
+                        style="margin-top:12px; display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto;">
+                        <div
+                            style="color:rgba(255,255,255,0.35); font-size:0.82rem; text-align:center; padding:20px 0;">
+                            Chưa có Chat ID nào
+                        </div>
+                    </div>
                 </div>
+
             </div>
         </div>
 
@@ -285,8 +325,8 @@
 
         <footer>
             <p>Cookie Checker Netflix &copy; 2026 &nbsp;·&nbsp; Chỉ dành cho mục đích học tập</p>
-            <p style="margin-top:6px;">Tạo bởi: Huy Vũ (<a href="https://beacons.ai/huyvu2512" target="_blank"
-                    rel="noopener noreferrer">https://beacons.ai/huyvu2512</a>)</p>
+            <p style="margin-top:6px;">Tác giả: Huy Vũ - <a href="https://beacons.ai/huyvu2512" target="_blank"
+                    rel="noopener noreferrer">https://beacons.ai/huyvu2512</a></p>
         </footer>
 
     </div>
