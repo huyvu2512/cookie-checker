@@ -176,6 +176,22 @@ function initApp() {
         cookieInput.value = saved;
     }
 
+    // Khôi phục kết quả batch cũ nếu có
+    try {
+        const savedBatch = localStorage.getItem('batchResults');
+        if (savedBatch) {
+            batchResultsData = JSON.parse(savedBatch);
+            if (batchResultsData.length > 0) {
+                displayBatchResults(batchResultsData);
+                saveResultsBtn.disabled = false;
+                const validCount = batchResultsData.filter(r => r.status === 'success').length;
+                batchStatus.textContent = `Kết quả cũ — ${validCount} hợp lệ (${batchResultsData.length} tổng)`;
+            }
+        }
+    } catch (e) {
+        localStorage.removeItem('batchResults');
+    }
+
     // Tự động lưu khi người dùng nhập
     cookieInput.addEventListener('input', () => {
         localStorage.setItem('cookieInput', cookieInput.value);
@@ -234,16 +250,14 @@ function initApp() {
             dropZone.classList.remove('drag-over');
             const dt = e.dataTransfer;
             if (dt.files.length) {
-                // Gán file vào input ẩn và trigger change
-                const input = document.getElementById('batch-files');
                 const files = Array.from(dt.files).filter(f =>
                     f.name.endsWith('.txt') || f.name.endsWith('.json') || f.name.endsWith('.zip'));
                 if (files.length) {
-                    // Tạo DataTransfer mới để gán vào input
-                    const transfer = new DataTransfer();
-                    files.forEach(f => transfer.items.add(f));
-                    input.files = transfer.files;
-                    input.dispatchEvent(new Event('change'));
+                    // Merge + dedup thay vì replace
+                    const existingNames = new Set(selectedFiles.map(f => f.name));
+                    const added = files.filter(f => !existingNames.has(f.name));
+                    selectedFiles = [...selectedFiles, ...added];
+                    updateFileList();
                 } else {
                     showNotification('Chỉ hỗ trợ .txt, .json, .zip', true);
                 }
@@ -611,9 +625,13 @@ function handleCopyResults() {
     } catch (e) { }
 }
 
-// Handle batch files change
+// Handle batch files change — merge và dedup theo tên
 function handleBatchFilesChange(e) {
-    selectedFiles = Array.from(e.target.files);
+    const newFiles = Array.from(e.target.files)
+        .filter(f => f.name.endsWith('.txt') || f.name.endsWith('.json') || f.name.endsWith('.zip'));
+    const existingNames = new Set(selectedFiles.map(f => f.name));
+    const added = newFiles.filter(f => !existingNames.has(f.name));
+    selectedFiles = [...selectedFiles, ...added];
     updateFileList();
 }
 
@@ -694,6 +712,8 @@ async function handleProcessBatch() {
         if (data.status === 'success') {
             batchResultsData = data.results;
             displayBatchResults(batchResultsData);
+            // Lưu kết quả vào localStorage
+            try { localStorage.setItem('batchResults', JSON.stringify(batchResultsData)); } catch (e) { }
             batchProgress.style.width = '100%';
             batchStatus.textContent = 'Xử lý hàng loạt hoàn tất';
             saveResultsBtn.disabled = false;
@@ -769,80 +789,115 @@ function displayBatchResults(results) {
     batchStatus.textContent = `Hoàn tất - Tỉ lệ thành công: ${successRate}%`;
 }
 
-// Handle save results
-function handleSaveResults() {
+// Handle save results — ghi từng file vào thư mục
+async function handleSaveResults() {
     if (batchResultsData.length === 0) {
         showNotification('Không có kết quả để lưu', true);
         return;
     }
 
-    let content = 'Kiểm Tra Cookie Netflix - Kết Quả Hàng Loạt\n';
-    content += 'Tạo lúc: ' + new Date().toLocaleString() + '\n';
-    content += 'Tạo bởi: Huy Vũ - https://beacons.ai/huyvu2512\n\n';
-    content += '='.repeat(80) + '\n\n';
+    const validResults = batchResultsData.filter(r => r.status === 'success');
+    if (validResults.length === 0) {
+        showNotification('Không có tài khoản hợp lệ để lưu', true);
+        return;
+    }
 
-    let validCount = 0;
-    let invalidCount = 0;
+    saveResultsBtn.disabled = true;
+    saveResultsBtn.innerHTML = '<div class="spinner"></div> Đang lưu...';
 
-    batchResultsData.forEach(result => {
-        if (result.status === 'success') {
-            validCount++;
-            const account = result.account_info;
-            const token = result.token_result;
+    // Tạo nội dung từng file
+    function buildFileContent(result) {
+        const account = result.account_info || {};
+        const token = result.token_result || {};
+        const lines = [];
+        lines.push('🎬 TỔNG QUAN TÀI KHOẢN');
+        lines.push('━'.repeat(26));
+        lines.push('');
+        lines.push('📋 THÔNG TIN CƠ BẢN');
+        lines.push('Trạng thái:     ' + (account.ok ? '✅ Hợp lệ' : '❌ Không hợp lệ'));
+        lines.push('Premium:        ' + (account.premium ? '👑 Có' : '❌ Không'));
+        lines.push('Quốc gia:       ' + (account.country || ''));
+        lines.push('');
+        lines.push('💳 CHI TIẾT GÓI');
+        lines.push('Gói:            ' + (account.plan || ''));
+        lines.push('Giá:            ' + (account.plan_price || ''));
+        lines.push('Thành viên từ:  ' + (account.member_since || ''));
+        lines.push('Phương thức TT: ' + (account.payment_method || ''));
+        lines.push('Ngày gia hạn:   ' + formatBillingDate(account.next_billing || ''));
+        lines.push('');
+        lines.push('👤 HỒ SƠ');
+        lines.push('Email:          ' + (account.email || '').replace(/\\x40/g, '@'));
+        lines.push('Xác minh Email: ' + (account.email_verified === 'Yes' ? 'Có' : 'Không'));
+        lines.push('Điện thoại:     ' + (account.phone || ''));
+        lines.push('Xác minh ĐT:    ' + (account.phone_verified === 'Yes' ? 'Có' : 'Không'));
+        lines.push('Hồ sơ:          ' + (account.profiles || ''));
+        lines.push('');
+        lines.push('⚙️ TÍNH NĂNG');
+        lines.push('Chất lượng:     ' + (account.video_quality || ''));
+        lines.push('Số màn hình:    ' + (account.max_streams || ''));
+        lines.push('Tạm giữ TT:     ' + (account.on_payment_hold === 'Yes' ? 'Có' : 'Không'));
+        lines.push('Thành viên phụ: ' + (account.extra_member === 'Yes' ? 'Có' : 'Không'));
 
-            content += `✅ ${result.filename}\n`;
-            content += `NetflixId: ${result.netflix_id}\n`;
-            content += `Trạng thái: ${account.ok ? 'Hợp lệ' : 'Không hợp lệ'}\n`;
-            content += `Premium: ${account.premium ? 'Có' : 'Không'}\n`;
-            content += `Quốc gia: ${account.country}\n`;
-            content += `Gói cước: ${account.plan}\n`;
-            content += `Giá: ${account.plan_price}\n`;
-            content += `Thành viên từ: ${account.member_since}\n`;
-            content += `Thanh toán qua: ${account.payment_method}\n`;
-            content += `Điện thoại: ${account.phone}\n`;
-            content += `ĐT đã xác minh: ${account.phone_verified}\n`;
-            content += `Chất lượng video: ${account.video_quality}\n`;
-            content += `Luồng tối đa: ${account.max_streams}\n`;
-            content += `Tạm giữ TT: ${account.on_payment_hold}\n`;
-            content += `Thành viên thêm: ${account.extra_member}\n`;
-            content += `Email: ${account.email}\n`;
-            content += `Email đã xác minh: ${account.email_verified}\n`;
-            content += `Hồ sơ: ${account.profiles}\n`;
-            content += `Ngày thanh toán tiếp: ${account.next_billing}\n`;
-
-            if (token.status === 'Success') {
-                content += `Token: ${token.token}\n`;
-                content += `URL đăng nhập: ${token.direct_login_url}\n`;
-                content += `Token hết hạn: ${new Date(token.expires * 1000).toLocaleString()}\n`;
-                content += `Còn lại: ${Math.floor(token.time_remaining / 86400)}d ${Math.floor((token.time_remaining % 86400) / 3600)}h ${Math.floor((token.time_remaining % 3600) / 60)}m\n`;
-            } else {
-                content += `Lỗi token: ${token.error}\n`;
-            }
-
-            content += '\n' + '─'.repeat(80) + '\n\n';
-        } else {
-            invalidCount++;
-            content += `❌ ${result.filename}: ${result.message}\n\n`;
-            content += '─'.repeat(80) + '\n\n';
+        if (token.status === 'Success') {
+            const exp = new Date(token.expires * 1000).toLocaleString('vi-VN');
+            const gen = new Date(token.generation_time * 1000).toLocaleString('vi-VN');
+            const d = Math.floor(token.time_remaining / 86400);
+            const h = Math.floor((token.time_remaining % 86400) / 3600);
+            const m = Math.floor((token.time_remaining % 3600) / 60);
+            const s = token.time_remaining % 60;
+            lines.push('');
+            lines.push('🔑 THÔNG TIN TOKEN');
+            lines.push('Tạo lúc:        ' + gen);
+            lines.push('Hết hạn:        ' + exp);
+            lines.push('Còn lại:        ' + d + 'd ' + h + 'h ' + m + 'm ' + s + 's');
+            lines.push('');
+            lines.push('📱 ĐĂNG NHẬP ĐIỆN THOẠI');
+            lines.push(token.direct_login_url || '');
+            lines.push('');
+            lines.push('🖥️ ĐĂNG NHẬP MÁY TÍNH');
+            lines.push('https://www.netflix.com/account?nftoken=' + encodeURIComponent(token.token));
         }
-    });
 
-    content += `\nTHỐNG KÊ\n`;
-    content += `Tổng file: ${batchResultsData.length}\n`;
-    content += `Hợp lệ: ${validCount}\n`;
-    content += `Không hợp lệ: ${invalidCount}\n`;
-    content += `Tỉ lệ thành công: ${((validCount / batchResultsData.length) * 100).toFixed(2)}%\n`;
+        lines.push('');
+        lines.push('━'.repeat(26));
+        lines.push('🤖 Được tạo bởi Netflix Cookies Checker');
+        lines.push('👤 Chủ sở hữu: @huyvu2512');
+        return lines.join('\n');
+    }
 
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `netflix_batch_results_${new Date().toISOString().slice(0, 10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showNotification('Đã lưu kết quả thành công');
+    function getFileName(result) {
+        const account = result.account_info || {};
+        const email = (account.email || '').replace(/\\x40/g, '@').replace(/[<>:"/\\|?*]/g, '_');
+        const country = (account.country || 'XX').replace(/\s+/g, '');
+        const plan = account.premium ? 'Premium' : 'Basic';
+        const rawName = email && email !== 'Unknown'
+            ? `${email.split('@')[0]}_${country}_${plan}`
+            : (result.filename || 'account').replace(/\.txt$/i, '');
+        return `${rawName}.txt`;
+    }
+
+    try {
+        const zip = new JSZip();
+        const dateStr = new Date().toISOString().slice(0, 10);
+        validResults.forEach(result => {
+            zip.file(getFileName(result), buildFileContent(result));
+        });
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `netflix_token_${dateStr}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showNotification(`Đã lưu ${validResults.length} file vào ZIP`);
+    } catch (e) {
+        if (e.name !== 'AbortError') showNotification('Lỗi: ' + e.message, true);
+    } finally {
+        saveResultsBtn.disabled = false;
+        saveResultsBtn.innerHTML = '<i class="fas fa-download"></i> Lưu Kết Quả';
+    }
 }
 
 // Enhanced displayResults function with dropdown and scroll
@@ -1157,11 +1212,13 @@ function loadTelegramConfig() {
         const config = JSON.parse(savedConfig);
         telegramToggle.checked = config.enabled || false;
         botTokenInput.value = config.bot_token || '';
-        // Support both old single chat_id and new array
+        // Support old string array, new {id,name} array, or single chat_id
         if (Array.isArray(config.chat_ids)) {
-            chatIdList = config.chat_ids;
+            chatIdList = config.chat_ids.map(item =>
+                typeof item === 'object' && item.id ? item : { id: String(item), name: '' }
+            );
         } else if (config.chat_id) {
-            chatIdList = [config.chat_id];
+            chatIdList = [{ id: config.chat_id, name: '' }];
         } else {
             chatIdList = [];
         }
@@ -1173,7 +1230,7 @@ function loadTelegramConfig() {
             fetch('/api/telegram-config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ enabled: config.enabled, bot_token: config.bot_token, chat_ids: chatIdList })
+                body: JSON.stringify({ enabled: config.enabled, bot_token: config.bot_token, chat_ids: chatIdList.map(x => x.id) })
             }).catch(() => { });
         }
     }
@@ -1187,25 +1244,31 @@ function renderChatIdList() {
         listEl.innerHTML = '<div style="color:rgba(255,255,255,0.35); font-size:0.82rem; text-align:center; padding:20px 0;">Chưa có Chat ID nào</div>';
         return;
     }
-    listEl.innerHTML = chatIdList.map((id, i) => `
+    listEl.innerHTML = chatIdList.map((item, i) => {
+        const label = item.name ? `${item.id} <span style="color:rgba(255,255,255,0.5);">(${item.name})</span>` : item.id;
+        return `
         <div style="display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px 12px;">
             <i class="fas fa-user" style="color:rgba(255,255,255,0.4); font-size:0.8rem;"></i>
-            <span style="flex:1; font-family:'Courier New',monospace; font-size:0.88rem; color:#e2e8f0;">${id}</span>
+            <span style="flex:1; font-family:'Courier New',monospace; font-size:0.88rem; color:#e2e8f0;">${label}</span>
             <button onclick="removeChatId(${i})" style="background:rgba(229,9,20,0.15); border:1px solid rgba(229,9,20,0.3); color:#e05461; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:0.78rem;">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // Add a new chat ID
 function addChatId() {
-    const input = document.getElementById('new-chat-id');
-    const val = input.value.trim();
-    if (!val) return;
-    if (chatIdList.includes(val)) { input.value = ''; return; }
-    chatIdList.push(val);
-    input.value = '';
+    const idInput = document.getElementById('new-chat-id');
+    const nameInput = document.getElementById('new-chat-name');
+    const id = (idInput?.value || '').trim();
+    const name = (nameInput?.value || '').trim();
+    if (!id) return;
+    if (chatIdList.some(x => x.id === id)) { idInput.value = ''; return; }
+    chatIdList.push({ id, name });
+    if (idInput) idInput.value = '';
+    if (nameInput) nameInput.value = '';
     renderChatIdList();
     saveTelegramConfig();
 }
@@ -1232,17 +1295,18 @@ function updateTelegramUI() {
 
 // Save Telegram config
 function saveTelegramConfig() {
+    const ids = chatIdList.map(x => x.id);
     const config = {
         enabled: telegramToggle.checked,
         bot_token: botTokenInput.value,
-        chat_ids: chatIdList,
-        chat_id: chatIdList[0] || ''
+        chat_ids: chatIdList,       // lưu full {id,name}
+        chat_id: ids[0] || ''
     };
     localStorage.setItem('telegramConfig', JSON.stringify(config));
     fetch('/api/telegram-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
+        body: JSON.stringify({ ...config, chat_ids: ids })  // API chỉ nhận ID
     }).catch(() => { });
 }
 

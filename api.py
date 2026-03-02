@@ -692,14 +692,6 @@ def batch_check():
                                         "mode": mode
                                     }
                                     
-                                    # Send to Telegram if enabled
-                                    if TELEGRAM_CONFIG['enabled']:
-                                        telegram_sent = send_to_telegram({
-                                            **account_info,
-                                            'token_result': token_result
-                                        }, os.path.basename(txt_file), file_content)
-                                        result_data['telegram_sent'] = telegram_sent
-                                    
                                     results.append(result_data)
                                 else:
                                     results.append({
@@ -743,14 +735,6 @@ def batch_check():
                                 "token_result": token_result,
                                 "mode": mode
                             }
-                            
-                            # Send to Telegram if enabled
-                            if TELEGRAM_CONFIG['enabled']:
-                                telegram_sent = send_to_telegram({
-                                    **account_info,
-                                    'token_result': token_result
-                                }, filename, file_content)
-                                result_data['telegram_sent'] = telegram_sent
                             
                             results.append(result_data)
                         else:

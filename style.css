@@ -162,6 +162,7 @@ header {
     transition: var(--transition);
     display: flex;
     flex-direction: column;
+    min-width: 0;
 }
 
 .card:hover {
@@ -906,6 +907,7 @@ textarea::-webkit-scrollbar-thumb:hover {
 .file-list {
     max-height: 180px;
     overflow-y: auto;
+    overflow-x: hidden;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: rgba(0, 0, 0, 0.2);
@@ -929,6 +931,9 @@ textarea::-webkit-scrollbar-thumb:hover {
     align-items: center;
     font-size: 0.82rem;
     gap: 10px;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .file-item:last-child {

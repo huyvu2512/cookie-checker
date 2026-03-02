@@ -6,6 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cookie Checker Netflix</title>
     <link rel="icon" type="image/png" href="favicon.png">
+    <!-- iOS Home Screen Icon -->
+    <link rel="apple-touch-icon" href="favicon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="favicon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Cookie Checker Netflix">
+    <meta name="theme-color" content="#0a0a0f">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -141,7 +148,7 @@
 
         <!-- ── BATCH TAB ── -->
         <div class="tab-content" id="batch-tab">
-            <div class="main-content">
+            <div class="main-content" style="grid-template-columns: 1fr 2fr;">
 
                 <div class="card">
                     <div class="card-title"><i class="fas fa-folder-open"></i> Xử Lý Hàng Loạt</div>
@@ -211,7 +218,7 @@
 
         <!-- ── TELEGRAM TAB ── -->
         <div class="tab-content" id="telegram-tab">
-            <div class="main-content" style="grid-template-columns:1fr 1fr; gap:16px;">
+            <div class="main-content" style="grid-template-columns:1fr 2fr; gap:16px;">
 
                 <!-- Card trái: Cấu hình bot -->
                 <div class="card">
@@ -246,14 +253,21 @@
                 <div class="card">
                     <div class="card-title"><i class="fas fa-users"></i> Danh Sách Chat ID</div>
 
-                    <div class="input-group" style="display:flex; gap:8px; align-items:flex-end;">
-                        <div style="flex:1;">
-                            <label for="new-chat-id">Thêm Chat ID</label>
-                            <input type="text" id="new-chat-id" placeholder="123456789" style="margin-bottom:0;">
+                    <div class="input-group">
+                        <div style="display:flex; gap:8px; align-items:flex-end;">
+                            <div style="flex:2;">
+                                <label for="new-chat-id">Chat ID</label>
+                                <input type="text" id="new-chat-id" placeholder="123456789" style="margin-bottom:0;">
+                            </div>
+                            <div style="flex:2;">
+                                <label for="new-chat-name">Tên hiển thị</label>
+                                <input type="text" id="new-chat-name" placeholder="Huy Vũ" style="margin-bottom:0;">
+                            </div>
+                            <button class="btn btn-primary" id="add-chat-id-btn"
+                                style="min-width:70px; padding:10px 12px;">
+                                <i class="fas fa-plus"></i> Thêm
+                            </button>
                         </div>
-                        <button class="btn btn-primary" id="add-chat-id-btn" style="min-width:80px; padding:10px 14px;">
-                            <i class="fas fa-plus"></i> Thêm
-                        </button>
                     </div>
 
                     <div id="chat-id-list"
@@ -332,6 +346,7 @@
     </div>
 
     <div class="notification" id="notification">Thao tác thành công!</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="script.js"></script>
 </body>
 
