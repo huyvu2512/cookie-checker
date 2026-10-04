@@ -88,7 +88,6 @@ cookie-checker/
 ├── package-lock.json             # Khóa phiên bản thư viện npm
 ├── requirements.txt              # Danh sách thư viện Python
 ├── vercel.json                   # Cấu hình định tuyến Vercel
-├── CONTRIBUTING.md               # Quy trình và hướng dẫn đóng góp
 ├── SECURITY.md                   # Chính sách bảo mật và quy trình báo lỗi
 ├── LICENSE                       # Giấy phép mã nguồn mở MIT
 └── README.md                     # Tài liệu hướng dẫn dự án
@@ -157,7 +156,6 @@ Hệ thống cung cấp các endpoint backend phục vụ xử lý cookie và c�
 
 | Tài liệu | Nội dung |
 | :--- | :--- |
-| [CONTRIBUTING.md](./CONTRIBUTING.md) | Hướng dẫn đóng góp mã nguồn và quy ước tiêu chuẩn dự án |
 | [SECURITY.md](./SECURITY.md) | Chính sách bảo mật, xử lý dữ liệu và quy trình báo cáo lỗ hổng |
 | [LICENSE](./LICENSE) | Giấy phép mã nguồn mở MIT |
 
