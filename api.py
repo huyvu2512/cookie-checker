@@ -448,7 +448,7 @@ def send_to_telegram(account_data, filename, original_content=""):
         message = "🎬 *TÀI KHOẢN NETFLIX HỢP LỆ* 🎬\n\n"
 
         message += "📋 *THÔNG TIN CƠ BẢN*\n"
-        message += "▫️ *File:* `{}`\n".format(filename.replace('_', '\_'))
+        message += "▫️ *File:* `{}`\n".format(filename.replace('_', r'\_'))
         message += "▫️ *Thời gian:* `{}`\n".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
         message += "▫️ *Trạng thái:* `{}`\n".format("✅ HỢP LỆ" if account_data['ok'] else "❌ KHÔNG HỢP LỆ")
         message += "▫️ *Premium:* `{}`\n\n".format("👑 CÓ" if account_data['premium'] else "❌ KHÔNG")
@@ -547,17 +547,45 @@ def send_to_telegram(account_data, filename, original_content=""):
         logger.error(f"Error sending to Telegram: {str(e)}")
         return False
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PUBLIC_DIR = os.path.join(BASE_DIR, 'public')
+
+def safe_send_file(filename, mimetype=None):
+    try:
+        target_public = os.path.join(PUBLIC_DIR, filename)
+        if os.path.exists(target_public):
+            return send_from_directory(PUBLIC_DIR, filename, mimetype=mimetype)
+        target_root = os.path.join(BASE_DIR, filename)
+        if os.path.exists(target_root):
+            return send_from_directory(BASE_DIR, filename, mimetype=mimetype)
+        return send_from_directory(PUBLIC_DIR, filename, mimetype=mimetype)
+    except Exception as e:
+        logger.error(f"Error serving {filename}: {e}")
+        return send_from_directory(PUBLIC_DIR, 'index.html')
+
 @app.route('/favicon.ico')
 def serve_favicon():
-    return send_from_directory('public', 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+    return safe_send_file('favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+@app.route('/favicon.png')
+def serve_favicon_png():
+    return safe_send_file('favicon.png', mimetype='image/png')
+
+@app.route('/robots.txt')
+def serve_robots():
+    return safe_send_file('robots.txt', mimetype='text/plain')
+
+@app.route('/sitemap.xml')
+def serve_sitemap():
+    return safe_send_file('sitemap.xml', mimetype='application/xml')
 
 @app.route('/')
 def serve_index():
-    return send_from_directory('public', 'index.html')
+    return safe_send_file('index.html')
 
 @app.route('/<path:path>')
 def serve_static(path):
-    return send_from_directory('public', path)
+    return safe_send_file(path)
 
 @app.route('/api/telegram-config', methods=['POST'])
 def set_telegram_config():
