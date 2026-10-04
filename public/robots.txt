@@ -4,4 +4,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://cookie-checker.vercel.app/sitemap.xml
+Sitemap: https://cookie.huyvu2512.io.vn/sitemap.xml
