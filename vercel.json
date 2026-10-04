@@ -1,17 +1,8 @@
 {
-  "builds": [
+  "rewrites": [
     {
-      "src": "api.py",
-      "use": "@vercel/python",
-      "config": {
-        "includeFiles": [
-          "public/**",
-          "favicon.ico"
-        ]
-      }
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
     }
-  ],
-  "routes": [
-    { "src": "/(.*)", "dest": "api.py" }
   ]
 }
