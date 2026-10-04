@@ -1,0 +1,25 @@
+{
+  "name": "cookie-checker-netflix",
+  "version": "1.0.0",
+  "description": "Kiểm tra cookie và tự động khởi tạo token đăng nhập Netflix",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "py": "python api.py"
+  },
+  "keywords": [
+    "netflix",
+    "cookie-checker",
+    "token-generator"
+  ],
+  "author": "Huy Vũ",
+  "license": "ISC",
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}

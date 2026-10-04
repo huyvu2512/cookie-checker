@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cookie Checker Netflix</title>
+    <meta name="description" content="Kiểm tra cookie và tự động khởi tạo token đăng nhập Netflix">
+    <!-- Favicon & Icons -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/assets/favicon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+    <link rel="manifest" href="manifest.json">
+    <!-- Open Graph / Social Preview -->
+    <meta property="og:title" content="Cookie Checker Netflix">
+    <meta property="og:description" content="Kiểm tra cookie và tự động khởi tạo token đăng nhập Netflix">
+    <meta property="og:image" content="/assets/preview.png">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Cookie Checker Netflix">
+    <meta name="twitter:description" content="Kiểm tra cookie và tự động khởi tạo token đăng nhập Netflix">
+    <meta name="twitter:image" content="/assets/preview.png">
+    <meta name="robots" content="index, follow">
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Cookie Checker">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Vercel Web Analytics & Speed Insights -->
+    <script>
+        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+        window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+    <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+
+<body>
+    <div class="container">
+
+        <header>
+            <div class="logo-wrap">
+                <div class="logo-icon"><i class="fas fa-cookie-bite"></i></div>
+                <div class="logo-text">Cookie Checker Netflix</div>
+            </div>
+            <div class="tagline">Kiểm tra cookie và tự động khởi tạo token đăng nhập Netflix</div>
+        </header>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="single"><i class="fas fa-terminal"></i> Nhập Đơn</div>
+            <div class="tab" data-tab="batch"><i class="fas fa-layer-group"></i> Hàng Loạt</div>
+            <div class="tab" data-tab="telegram"><i class="fab fa-telegram"></i> Telegram</div>
+            <div class="tab" data-tab="about"><i class="fas fa-circle-info"></i> Hướng Dẫn</div>
+        </div>
+
+        <!-- ── SINGLE TAB ── -->
+        <div class="tab-content active" id="single-tab">
+            <div class="main-content" style="grid-template-columns: 1fr 2fr;">
+
+                <!-- Input card -->
+                <div class="card">
+                    <div class="card-title" style="justify-content: space-between;">
+                        <span><i class="fas fa-cookie"></i> Nhập Cookie</span>
+                        <button id="clear-data-btn" class="btn"
+                            style="font-size:0.72rem; padding:4px 10px; min-height:unset; opacity:0.65;"
+                            title="Xóa cookie và kết quả đã lưu">
+                            <i class="fas fa-trash"></i> Xóa dữ liệu
+                        </button>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="cookie-input">Dán cookie Netflix vào đây</label>
+                        <textarea id="cookie-input" placeholder="Hỗ trợ JSON · Text · Netscape format..."></textarea>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn" id="load-file-btn"><i class="fas fa-file-import"></i> Tải File</button>
+                        <button class="btn" id="paste-btn"><i class="fas fa-paste"></i> Dán</button>
+                        <button class="btn" id="clear-btn"><i class="fas fa-xmark"></i> Xóa</button>
+                    </div>
+
+                    <div class="mode-toggle">
+                        <div class="mode-option active" data-mode="fullinfo">Đầy Đủ Thông Tin</div>
+                        <div class="mode-option" data-mode="tokenonly">Lấy Token</div>
+                    </div>
+
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-primary" id="generate-btn" style="flex:2;">
+                            <i class="fas fa-key"></i> Tạo Token
+                        </button>
+                        <button class="btn" id="send-telegram-btn"
+                            style="flex:1; background:linear-gradient(135deg,#229ED9,#1a7fc4); border:none; color:#fff; box-shadow:0 2px 12px rgba(34,158,217,0.3);"
+                            title="Tạo token và gửi qua Telegram">
+                            <i class="fab fa-telegram"></i> Telegram
+                        </button>
+                    </div>
+
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress" id="progress"></div>
+                        </div>
+                        <div class="status" id="status">Sẵn sàng</div>
+                    </div>
+
+                    <!-- TV Activation Widget -->
+                    <div class="tv-widget">
+                        <div class="tv-widget-header">
+                            <i class="fas fa-tv"></i>
+                            <span>Kích Hoạt Netflix TV</span>
+                        </div>
+                        <div class="tv-code-boxes" id="tv-code-boxes">
+                            <input class="tv-box" type="tel" maxlength="1" autocomplete="off" inputmode="numeric"
+                                pattern="[0-9]*">
+                            <input class="tv-box" type="tel" maxlength="1" autocomplete="off" inputmode="numeric"
+                                pattern="[0-9]*">
+                            <input class="tv-box" type="tel" maxlength="1" autocomplete="off" inputmode="numeric"
+                                pattern="[0-9]*">
+                            <input class="tv-box" type="tel" maxlength="1" autocomplete="off" inputmode="numeric"
+                                pattern="[0-9]*">
+                            <span class="tv-dash">—</span>
+                            <input class="tv-box" type="tel" maxlength="1" autocomplete="off" inputmode="numeric"
+                                pattern="[0-9]*">
+                            <input class="tv-box" type="tel" maxlength="1" autocomplete="off" inputmode="numeric"
+                                pattern="[0-9]*">
+                            <input class="tv-box" type="tel" maxlength="1" autocomplete="off" inputmode="numeric"
+                                pattern="[0-9]*">
+                            <input class="tv-box" type="tel" maxlength="1" autocomplete="off" inputmode="numeric"
+                                pattern="[0-9]*">
+                        </div>
+                        <button class="btn btn-primary" id="tv-activate-btn" style="width:100%; margin-top:14px;">
+                            <i class="fas fa-play"></i> Tiếp Tục
+                        </button>
+                        <div class="tv-widget-hint">
+                            Mở Netflix trên TV → Đăng nhập → Nhập mã hiển thị
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results card (right column, wider) -->
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-chart-line"></i> Kết Quả</div>
+
+                    <div class="results-container">
+                        <div class="results" id="results">
+                            <div class="result-item">
+                                <div class="result-title"><i class="fas fa-circle-info"></i> Chưa có kết quả</div>
+                                <div class="result-content">Xử lý cookie để xem kết quả tại đây.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:8px; margin-top:14px;">
+                        <button class="btn" id="copy-results-btn" style="flex:2;" disabled>
+                            <i class="fas fa-copy"></i> Sao Chép Kết Quả
+                        </button>
+                        <button class="btn" id="send-result-telegram-btn"
+                            style="flex:1; background:linear-gradient(135deg,#7c3aed,#5b21b6); border:none; color:#fff; box-shadow:0 2px 12px rgba(124,58,237,0.3);"
+                            title="Chia sẻ kết quả dưới dạng file .txt" disabled>
+                            <i class="fas fa-share-nodes"></i> Chia Sẻ
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── BATCH TAB ── -->
+        <div class="tab-content" id="batch-tab">
+            <div class="main-content" style="grid-template-columns: 1fr 2fr;">
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-folder-open"></i> Xử Lý Hàng Loạt</div>
+
+                    <div class="input-group">
+                        <input type="file" id="batch-files" multiple accept=".txt,.json,.zip" style="display:none;">
+                        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('batch-files').click()">
+                            <div class="drop-zone-icon"><i class="fas fa-cloud-arrow-up"></i></div>
+                            <div class="drop-zone-text">Kéo & thả file vào đây</div>
+                            <div class="drop-zone-sub">hoặc <span>nhấn để chọn file</span> · .txt · .json · .zip</div>
+                        </div>
+                    </div>
+
+                    <div class="file-list" id="file-list">
+                        <div class="file-item"><span>Chưa chọn file nào</span></div>
+                    </div>
+
+                    <div class="mode-toggle">
+                        <div class="mode-option active" data-mode="fullinfo">Đầy Đủ Thông Tin</div>
+                        <div class="mode-option" data-mode="tokenonly">Lấy Token</div>
+                    </div>
+
+                    <button class="btn btn-primary" id="process-batch-btn" style="width:100%;">
+                        <i class="fas fa-bolt"></i> Xử Lý Hàng Loạt
+                    </button>
+
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress" id="batch-progress"></div>
+                        </div>
+                        <div class="status" id="batch-status">Sẵn sàng</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-chart-bar"></i> Thống Kê</div>
+
+                    <div class="summary">
+                        <div class="summary-title">Tổng Quan Kết Quả</div>
+                        <div class="summary-stats">
+                            <div class="stat total">
+                                <div class="stat-value" id="total-files">0</div>
+                                <div class="stat-label">Tổng File</div>
+                            </div>
+                            <div class="stat valid">
+                                <div class="stat-value" id="valid-files">0</div>
+                                <div class="stat-label">Hợp Lệ</div>
+                            </div>
+                            <div class="stat invalid">
+                                <div class="stat-value" id="invalid-files">0</div>
+                                <div class="stat-label">Không Hợp Lệ</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="file-list" id="batch-results" style="max-height:260px;">
+                        <div class="file-item"><span>Chưa có kết quả</span></div>
+                    </div>
+
+                    <button class="btn" id="save-results-btn" style="width:100%; margin-top:14px;" disabled>
+                        <i class="fas fa-download"></i> Lưu Kết Quả
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── TELEGRAM TAB ── -->
+        <div class="tab-content" id="telegram-tab">
+            <div class="main-content" style="grid-template-columns:1fr 2fr; gap:16px;">
+
+                <!-- Card trái: Cấu hình bot -->
+                <div class="card">
+                    <div class="card-title"><i class="fab fa-telegram"></i> Cấu Hình Bot</div>
+
+                    <div class="input-group">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="telegram-toggle">
+                            <span class="toggle-slider"></span>
+                            Bật gửi kết quả qua Telegram
+                        </label>
+                    </div>
+
+                    <div id="telegram-config" class="telegram-config" style="display:none;">
+                        <div class="input-group">
+                            <label for="bot-token">Bot Token</label>
+                            <input type="text" id="bot-token" placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz">
+                        </div>
+                        <!-- hidden legacy field, kept for JS compat -->
+                        <input type="hidden" id="chat-id">
+                        <button class="btn btn-primary" id="test-telegram-btn" style="width:100%;">
+                            <i class="fas fa-paper-plane"></i> Kiểm Tra Kết Nối
+                        </button>
+                    </div>
+
+                    <div class="telegram-status" id="telegram-status">
+                        <i class="fas fa-circle-xmark"></i> Gửi Telegram đang tắt
+                    </div>
+                </div>
+
+                <!-- Card phải: Danh sách Chat ID -->
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-users"></i> Danh Sách Chat ID</div>
+
+                    <div class="input-group">
+                        <div style="display:flex; gap:8px; align-items:flex-end;">
+                            <div style="flex:2;">
+                                <label for="new-chat-id">Chat ID</label>
+                                <input type="text" id="new-chat-id" placeholder="123456789" style="margin-bottom:0;">
+                            </div>
+                            <div style="flex:2;">
+                                <label for="new-chat-name">Tên hiển thị</label>
+                                <input type="text" id="new-chat-name" placeholder="Huy Vũ" style="margin-bottom:0;">
+                            </div>
+                            <button class="btn btn-primary" id="add-chat-id-btn"
+                                style="min-width:70px; padding:10px 12px;">
+                                <i class="fas fa-plus"></i> Thêm
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="chat-id-list"
+                        style="margin-top:12px; display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto;">
+                        <div
+                            style="color:rgba(255,255,255,0.35); font-size:0.82rem; text-align:center; padding:20px 0;">
+                            Chưa có Chat ID nào
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── ABOUT TAB ── -->
+        <div class="tab-content" id="about-tab">
+            <div class="card about-card">
+                <div class="card-title"><i class="fas fa-circle-info"></i> Hướng Dẫn Sử Dụng</div>
+
+                <p>Kiểm tra cookie và tự động khởi tạo token đăng nhập Netflix.</p>
+
+                <div class="feature-grid">
+                    <div class="feature-item"><i class="fas fa-check"></i> Trích xuất NetflixId từ text, JSON, Netscape
+                    </div>
+                    <div class="feature-item"><i class="fas fa-check"></i> Kiểm tra thông tin chi tiết tài khoản</div>
+                    <div class="feature-item"><i class="fas fa-check"></i> Tạo token đăng nhập trực tiếp</div>
+                    <div class="feature-item"><i class="fas fa-check"></i> Xử lý hàng loạt nhiều file / ZIP</div>
+                    <div class="feature-item"><i class="fas fa-check"></i> Gửi kết quả hợp lệ qua Telegram</div>
+                    <div class="feature-item"><i class="fas fa-check"></i> Xuất báo cáo dạng .txt</div>
+                </div>
+
+                <div class="about-section">
+                    <h3><i class="fas fa-file"></i> Định dạng hỗ trợ</h3>
+                    <ul>
+                        <li>File .txt / .json chứa cookie</li>
+                        <li>File .zip chứa nhiều file cookie</li>
+                        <li>Chuỗi header có NetflixId</li>
+                        <li>Định dạng Netscape cookie</li>
+                    </ul>
+                </div>
+
+                <div class="about-section">
+                    <h3><i class="fab fa-telegram"></i> Cài đặt Telegram</h3>
+                    <ol>
+                        <li>Tạo bot qua @BotFather trên Telegram</li>
+                        <li>Lấy Bot Token từ BotFather</li>
+                        <li>Nhắn bất kỳ tin nào cho bot</li>
+                        <li>Lấy Chat ID tại: api.telegram.org/bot&lt;Token&gt;/getUpdates</li>
+                        <li>Bật toggle và nhập thông tin vào form</li>
+                    </ol>
+                </div>
+
+                <div class="about-section">
+                    <h3><i class="fas fa-play"></i> Cách dùng</h3>
+                    <ol>
+                        <li>Dán cookie hoặc tải file ở tab <strong>Nhập Đơn</strong></li>
+                        <li>Chọn chế độ: <strong>Đầy Đủ</strong> hoặc <strong>Chỉ Token</strong></li>
+                        <li>Nhấn <strong>Tạo Token</strong> để xử lý</li>
+                        <li>Dùng tab <strong>Hàng Loạt</strong> cho nhiều file cùng lúc</li>
+                    </ol>
+                </div>
+
+                <div class="note-box">
+                    <strong>⚠ Lưu ý:</strong> Công cụ này chỉ dành cho mục đích học tập và nghiên cứu bảo mật.
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <div class="notification" id="notification">Thao tác thành công!</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>

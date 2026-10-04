@@ -1,0 +1,7 @@
+# robots.txt
+# Kiểm tra cookie và tự động khởi tạo token đăng nhập Netflix
+
+User-agent: *
+Allow: /
+
+Sitemap: https://cookie-checker.vercel.app/sitemap.xml

@@ -1,0 +1,26 @@
+{
+    "short_name": "Cookie Checker",
+    "name": "Cookie Checker Netflix",
+    "description": "Kiểm tra cookie và tự động khởi tạo token đăng nhập Netflix",
+    "icons": [
+        {
+            "src": "assets/favicon-32x32.png",
+            "type": "image/png",
+            "sizes": "32x32"
+        },
+        {
+            "src": "assets/apple-touch-icon.png",
+            "type": "image/png",
+            "sizes": "180x180"
+        },
+        {
+            "src": "assets/favicon.png",
+            "type": "image/png",
+            "sizes": "512x512"
+        }
+    ],
+    "start_url": ".",
+    "display": "standalone",
+    "theme_color": "#0a0a0f",
+    "background_color": "#0a0a0f"
+}
