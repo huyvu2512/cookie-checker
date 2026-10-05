@@ -19,7 +19,7 @@ const upload = multer({
     limits: { fileSize: 100 * 1024 * 1024 } // 100MB
 });
 
-const OWNER_CREDIT = "Huy Vũ - https://huyvu2512.io.vn/";
+const OWNER_CREDIT = "Huy Vũ - https://huyvu2512.io.vn";
 
 const TELEGRAM_CONFIG = {
     enabled: false,
