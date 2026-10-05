@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Owner credit
-OWNER_CREDIT = "Huy Vũ - https://beacons.ai/huyvu2512"
+OWNER_CREDIT = "Huy Vũ - https://huyvu2512.io.vn/"
 
 # Telegram configuration (will be set by user)
 TELEGRAM_CONFIG = {

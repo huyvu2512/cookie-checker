@@ -16,6 +16,6 @@ Nếu bạn phát hiện bất kỳ vấn đề bảo mật tiềm ẩn nào li�
 
 1. Tuyệt đối không công khai lỗ hổng qua hệ thống Issue công khai của GitHub.
 2. Gửi thông tin chi tiết về lỗ hổng kèm các bước tái hiện tới kênh liên hệ cá nhân của tác giả:
-   - Trang thông tin: https://beacons.ai/huyvu2512
+   - Trang thông tin: https://huyvu2512.io.vn/
    - Hồ sơ GitHub: https://github.com/huyvu2512
 3. Tác giả sẽ tiếp nhận, đánh giá mức độ nghiêm trọng và phát hành bản cập nhật vá lỗi trong thời gian sớm nhất.
