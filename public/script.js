@@ -373,6 +373,16 @@ function handleClear() {
     showNotification('Đã xóa nội dung');
 }
 
+async function parseApiResponse(response) {
+    const text = await response.text();
+    try {
+        return JSON.parse(text);
+    } catch {
+        const cleanMsg = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 150);
+        throw new Error(`Máy chủ phản hồi HTTP ${response.status}: ${cleanMsg || response.statusText || 'Lỗi không xác định'}`);
+    }
+}
+
 // Handle generate token
 async function handleGenerate() {
     const content = cookieInput.value.trim();
@@ -399,7 +409,7 @@ async function handleGenerate() {
             })
         });
 
-        const data = await response.json();
+        const data = await parseApiResponse(response);
 
         if (data.status === 'success') {
             progress.style.width = '100%';
@@ -452,7 +462,7 @@ async function handleSendTelegram() {
             })
         });
 
-        const data = await response.json();
+        const data = await parseApiResponse(response);
 
         if (data.status === 'success') {
             progress.style.width = '100%';
@@ -707,7 +717,7 @@ async function handleProcessBatch() {
             body: formData
         });
 
-        const data = await response.json();
+        const data = await parseApiResponse(response);
 
         if (data.status === 'success') {
             batchResultsData = data.results;

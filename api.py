@@ -17,6 +17,21 @@ import uuid
 app = Flask(__name__)
 CORS(app)
 
+class VercelPathMiddleware:
+    """Normalize PATH_INFO for Vercel serverless rewrites"""
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        matched = environ.get('HTTP_X_MATCHED_PATH') or environ.get('RAW_URI') or environ.get('REQUEST_URI')
+        if matched:
+            clean_path = matched.split('?')[0]
+            if clean_path:
+                environ['PATH_INFO'] = clean_path
+        return self.wsgi_app(environ, start_response)
+
+app.wsgi_app = VercelPathMiddleware(app.wsgi_app)
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -583,11 +598,8 @@ def serve_sitemap():
 def serve_index():
     return safe_send_file('index.html')
 
-@app.route('/<path:path>')
-def serve_static(path):
-    return safe_send_file(path)
-
 @app.route('/api/telegram-config', methods=['POST'])
+@app.route('/telegram-config', methods=['POST'])
 def set_telegram_config():
     try:
         data = request.get_json()
@@ -615,6 +627,7 @@ def set_telegram_config():
         })
 
 @app.route('/api/check', methods=['POST'])
+@app.route('/check', methods=['POST'])
 def check_cookie():
     original_content = ""
     try:
@@ -671,6 +684,7 @@ def check_cookie():
         })
 
 @app.route('/api/batch-check', methods=['POST'])
+@app.route('/batch-check', methods=['POST'])
 def batch_check():
     temp_dirs = []
     
@@ -817,6 +831,36 @@ def batch_check():
                 logger.info(f"Cleaned up temporary directory: {temp_dir}")
             except Exception as e:
                 logger.error(f"Error cleaning up temporary directory {temp_dir}: {e}")
+
+@app.route('/api/index.py', methods=['POST'])
+@app.route('/api/index', methods=['POST'])
+@app.route('/api', methods=['POST'])
+def vercel_entry_post():
+    """Fallback handler when Vercel rewrites directly to entry file without altering path"""
+    if request.files:
+        return batch_check()
+    data = request.get_json(silent=True) or {}
+    if 'bot_token' in data or 'chat_ids' in data or 'chat_id' in data:
+        return set_telegram_config()
+    return check_cookie()
+
+@app.errorhandler(404)
+def handle_404(e):
+    if request.path.startswith('/api'):
+        return jsonify({'status': 'error', 'message': f'API endpoint {request.path} not found'}), 404
+    return safe_send_file('index.html')
+
+@app.errorhandler(405)
+def handle_405(e):
+    if request.path.startswith('/api'):
+        return jsonify({'status': 'error', 'message': f'Method {request.method} not allowed for {request.path}'}), 405
+    return jsonify({'status': 'error', 'message': 'Method not allowed'}), 405
+
+@app.route('/<path:path>', methods=['GET', 'HEAD', 'OPTIONS'])
+def serve_static(path):
+    if path.startswith('api/'):
+        return jsonify({'status': 'error', 'message': f'API endpoint /{path} not found'}), 404
+    return safe_send_file(path)
 
 if __name__ == '__main__':
 

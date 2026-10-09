@@ -447,7 +447,7 @@ async function sendToTelegram(accountData, filename, originalContent = "") {
 
 // ── API Routes ──
 
-app.post('/api/telegram-config', (req, res) => {
+app.post(['/api/telegram-config', '/telegram-config'], (req, res) => {
     try {
         const data = req.body || {};
         TELEGRAM_CONFIG.enabled = !!data.enabled;
@@ -473,7 +473,7 @@ app.post('/api/telegram-config', (req, res) => {
     }
 });
 
-app.post('/api/check', async (req, res) => {
+app.post(['/api/check', '/check'], async (req, res) => {
     try {
         const { content = '', mode = 'fullinfo', send_telegram = false } = req.body || {};
 
@@ -525,7 +525,7 @@ app.post('/api/check', async (req, res) => {
     }
 });
 
-app.post('/api/batch-check', upload.array('files'), async (req, res) => {
+app.post(['/api/batch-check', '/batch-check'], upload.array('files'), async (req, res) => {
     try {
         const files = req.files || [];
         const mode = req.body.mode || 'fullinfo';
